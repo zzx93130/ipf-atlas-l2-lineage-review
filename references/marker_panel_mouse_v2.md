@@ -1,17 +1,14 @@
 # Mouse Lung Single-Cell Annotation Marker Panel (v2-mouse, draft)
 
 Derived from `marker_panel_human_v2.md` by (1) ortholog mapping, (2) review against public mouse lung studies.
-**Status:** Curated candidate panel. Orthologs were mapped from curated knowledge; the MGI/Ensembl homology tables were not reachable from this environment (proxy 403). Before use, confirm every symbol against the dataset's var_names (and MGI `HOM_MouseHumanSequence.rpt`). Items marked `[verify]` are less certain.
-**Scope:** Mouse lung scRNA/snRNA-seq (homeostasis, bleomycin/other fibrosis, injury). Same L1/L2/L3 structure and the same 8 decision rules as the human panel.
-
-Legend: `~~GENE~~` = no mouse ortholog, dropped. `(human→mouse)` = symbol changed. `+Gene` = added from mouse literature. `⚠` = marker behaves differently in mouse.
+**Status:** Curated candidate panel. Before use, confirm every symbol against the dataset's var_names (and MGI `HOM_MouseHumanSequence.rpt`). 
+**Scope:** Mouse lung scRNA/snRNA-seq (homeostasis, bleomycin/other fibrosis, injury). 
 
 ## Species-level cautions
 
 - Mice have no respiratory bronchioles and submucosal glands exist only in the upper trachea, so AT0, pre-TB, TRB and SMG calls usually do not apply to distal-lung datasets.
 - Basal cells are restricted to trachea/main bronchi, except after injury (ectopic Krt5+ cells).
 - Many human immune markers are absent in mouse: GNLY, FCGR3B, CD1C, CD1E, LILRA4, XCL2, FCN3, IFI6, CXCL8, KLRC3, CD27-on-B-memory logic.
-- Dissociation stress (Fos/Jun/heat-shock) is stronger in mouse enzymatic prep; treat as L3, never identity.
 
 ## L1
 
@@ -19,17 +16,17 @@ Legend: `~~GENE~~` = no mouse ortholog, dropped. `(human→mouse)` = symbol chan
 Epithelial:         {markers: [Epcam]}
 Blood endothelial:  {markers: [Pecam1, Cdh5, Cldn5, Vwf, Ramp2]}
 Lymphatic endothelial:
-  markers: [Prox1, Flt4, Mmrn1, Ccl21a, Pdpn, +Lyve1]   # CCL21 → Ccl21a (also Ccl21b/c; Ccl21a is the LEC copy)
-  note: ⚠ Lyve1 is also on interstitial/perivascular macrophages.
+  markers: [Prox1, Mmrn1, Ccl21a, Pdpn, Lyve1]
 Fibroblast:         {markers: [Pdgfra, Dcn, Lum, Col1a2, Col3a1]}
 Mural:              {markers: [Pdgfrb, Rgs5, Acta2, Myh11, Tagln]}
 Myeloid:
-  markers: [Lyz2, Tyrobp, Fcer1g, Aif1, Spi1]            # LYZ → Lyz2 (Lyz1 also in AT2/Paneth-like, so use Lyz2 for myeloid)
-  neutrophil_support: [S100a8, S100a9, +Ly6g, +Retnlg]    # FCGR3B has no ortholog
+  markers: [Lyz2, Tyrobp, Fcer1g, Aif1, Spi1]
+  neutrophil_support: [S100a8, S100a9, +Ly6g, +Retnlg]
 Lymphoid:
+  markers: [Ptprc]
   T_lineage: [Cd3d, Trac, Cd2]
   B_lineage: [Cd79a, Ms4a1, +Cd19]
-  NK_lineage: [Klrd1, Nkg7, Ncr1, +Klrb1c, +Gzma]         # GNLY dropped
+  NK_lineage: [Klrd1, Nkg7, Ncr1, +Klrb1c, +Gzma] 
 Mast:               {markers: [Tpsab1, Tpsb2, Cpa3, Ms4a2, +Mcpt4, +Kit]}
 Mesothelial:        {markers: [Msln, Upk3b, Calb2, Wt1, +Lrrn4]}
 ```
@@ -44,46 +41,29 @@ AT1:
 AT2:
   markers: [Sftpc, Sftpb, Sftpa1, Sftpd, +Lamp3, +Abca3, +Slc34a2]
   note: SFTPA1/SFTPA2 → single Sftpa1 (no Sftpa2). Sftpc is the standard mouse AT2 anchor; Lyz1/Lyz2 are also high in mouse AT2.
-AT0:
-  status: no established mouse counterpart; do not call by default.
-  closest: BASC-like Sftpc+ Scgb1a1+ Scgb3a2+ at the bronchioalveolar junction (Sftpc, Sftpb, Scgb3a2, Scgb1a1 all present). Call "BASC-like", conditional.
-pre-TB secretory:
-  status: use "distal club (Scgb3a2-high)" instead.
-  markers: [Scgb3a2, Sftpb, Scgb1a1]  expected_low: [Sftpc]
-TRB secretory:
-  status: not applicable (no respiratory bronchioles). Drop.
 Secretory:
   markers: [Krt19, Wfdc2, Cxcl17, +Bpifa1]
 Club:
   markers: [Scgb1a1, Scgb3a2, Cyp2f2, Bpifb1, +Cbr2]
-  note: SCGB3A1 is low/absent in mouse club (human-specific enrichment) [verify]; CYP2F1 → Cyp2f2. Scgb3a2 is the best distal club marker.
 Aberrant basaloid → "Krt8-high transitional AT2→AT1 state" (PATS / DATP / ADI):
   markers: [Krt8, Cldn4, Krt19, Sfn, Lgals3, Cdkn1a, +Krt18, +Ndrg1, +Il1r1]
-  optional: [Krt17, Lamc2]  # present in a subset after injury; weak and variable
-  required_context: Epithelial identity; Krt5 low/absent; Sftpc low-to-moderate, Ager rising along the AT1 path.
-  note: The human Krt17+/Krt5− basaloid cell has no clean one-to-one mouse cluster; the mouse transitional state is defined mainly by Krt8/Cldn4/Sfn (Strunz 2020; Choi 2020; Kobayashi 2020). Treat as L3 state on AT2 if it still carries Sftpc. Exclude doublets.
 Basal:
   markers: [Krt5, Trp63, Krt15, Krt17, +Krt14, +Ngfr]
-  note: Trachea / large airway only; in lung, ectopic Krt5+ cells appear after severe injury.
 Suprabasal / hillock:
-  markers: [Krt4, Krt13, +Ecm1, +Lgals3, +Anxa1]   # KRT16/SCEL are weak in mouse [verify]
+  markers: [Krt4, Krt13, +Ecm1, +Lgals3, +Anxa1]
 Goblet:
   markers: [Muc5ac, Muc5b, Spdef, Agr2, +Gcnt3, +Bpifb1]
-  note: Tff3 is broader secretory in mouse, keep as support only. Sparse in healthy mouse lung; expand with Il13/allergen.
 Multiciliated:
-  markers: [Foxj1, Tppp3, Rsph1, Caps, +Dynlrb2, +Cdhr3]   # CAP5 in source = Caps
+  markers: [Foxj1, Tppp3, Rsph1, +Dynlrb2, +Cdhr3]
 Deuterosomal:
   markers: [Deup1, Foxn4, Cdc20b, Ccno, +Mcidas]
 PNEC:
   markers: [Ascl1, Calca, Chga, Chgb, Scg5, +Syp, +Resp18]
-  note: SCGN is not a consistent mouse PNEC marker [verify]. Calca also marks ILC2 subsets; require Ascl1/Chga.
 Ionocyte:
   markers: [Foxi1, Cftr, Ascl3, +Atp6v1b1, +Atp6v0a4]  # Atp6v1a is ubiquitous, drop as sole marker
 Tuft:
   markers: [Pou2f3, Trpm5, Dclk1, Avil, Gnat3, +Il25, +Alox5ap]   # HES6, LRMP are weak in mouse
-SMG serous / mucous:
-  status: upper trachea only; not applicable to lung datasets.
-  serous: [Ltf, Pip, Bpifa2, Zg16b?]  mucous: [Muc5b, Tff2, Bpifb1]  # LPO/AZGP1 [verify]
+
 ```
 
 ### Myeloid and mast
