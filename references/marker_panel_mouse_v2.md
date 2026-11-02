@@ -147,20 +147,17 @@ pDC:  see myeloid pDC (Siglech, Bst2, Ly6d); do not use Jchain as the pDC marker
 
 ```yaml
 aCap:
-  markers: [Car4, Ednrb, Apln, Tbx2, Hpgd, Emcn, Sema3c]   # Car4/Apln/Tbx2 are the Gillich 2020 anchors
+  markers: [Car4, Ednrb, Apln, Tbx2]   # Car4/Apln/Tbx2 are the Gillich 2020 anchors
 gCap:
-  markers: [Plvap, Gpihbp1, Kit, Rgcc, Epas1, Aplnr]       # FCN3 no ortholog; Kit marks the progenitor-like gCap subset
+  markers: [Ntrk2, Cdk19]       # FCN3 no ortholog; Kit marks the progenitor-like gCap subset
 Arterial:
-  markers: [Gja5, Gja4, Bmx, Sox17, Efnb2, Hey1, Fbln5, Dkk2, Cxcl12, Igfbp3]
+  markers: [Gja5, Gja4, Bmx]
 Venous:
-  markers: [Ackr1, Vcam1, Selp, Nr2f2, Vwf, Slc6a2?]
-Pulmonary venous:
-  markers: [Hdac9?, Cpe?, Clu, Vcam1]  expected_low: [Col15a1]   # [verify] weaker mouse evidence
+  markers: [Vcam1, Selp, Vwf, Slc6a2]
 Systemic (bronchial) venous / systemic vessel:
-  markers: [Col15a1, Vwa1, Plvap, Adamts9]   # Col15a1+ systemic vascular EC around airways in mouse (Gillich 2020)
+  markers: [Col15a1, Vwa1, Plvap]
 Tip / angiogenic:
   markers: [Esm1, Kcne3, Angpt2, Dll4, Pgf, Cxcr4, Mcam]
-  note: ⚠ Apln is an aCap marker in mouse; remove from the tip panel.
 ```
 
 ### Stromal
