@@ -164,20 +164,20 @@ Tip / angiogenic:
 
 ```yaml
 Alveolar fibroblast:
-  markers: [Npnt, Gpc3, Inmt, Col13a1, Fmo2?, Scube2, Adh1b?]   # Tsukui 2020; Npnt is the cleanest
+  markers: [Npnt]   # Tsukui 2020; Npnt is the cleanest
 Adventitial fibroblast:
-  markers: [Pi16, Dpt, Mfap5, Cd34, Igfbp6, Sfrp2]
+  markers: [Pi16]
 Peribronchial fibroblast:
-  markers: [Hhip, Aspn, Fgf18, Actg2, Lgr6]    # Hhip, Aspn per Tsukui 2020; WIF1 less specific
+  markers: [Hhip, Aspn, Fgf18, Actg2, Lgr6] 
 Myofibroblast:
   markers: [Cthrc1, Postn, Tnc, Acta2, Col1a1, Ltbp2]   # Cthrc1+ is the bleomycin fibrotic population
 Lipofibroblast (mouse add):
-  markers: [Plin2, Lpl, Fabp4?, Tcf21, Fgf10, Ces1d]
+  markers: [Plin2, Lpl, Tcf21, Fgf10, Ces1d]
 SMC:
-  markers: [Myh11, Acta2, Tagln, Cnn1, Lmod1, Myl9, Actg2 (airway SMC), Des]
+  markers: [Myh11, Acta2, Tagln, Cnn1]
 Pericyte:
-  markers: [Rgs5, Cspg4, Pdgfrb, Higd1b, Cox4i2, Kcnj8, Abcc9]
-Mesothelial: {markers: [Msln, Upk3b, Calb2, Wt1, Lrrn4, Krt8, Krt18, Krt19]}
+  markers: [Rgs5, Higd1b, Cox4i2]
+Mesothelial: {markers: [Msln, Upk3b, Wt1]}
 ```
 
 ## L3
