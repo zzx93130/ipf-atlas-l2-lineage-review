@@ -21,12 +21,12 @@ Fibroblast:         {markers: [Pdgfra, Dcn, Lum, Col1a2, Col3a1]}
 Mural:              {markers: [Pdgfrb, Rgs5, Acta2, Myh11, Tagln]}
 Myeloid:
   markers: [Lyz2, Tyrobp, Fcer1g, Aif1, Spi1]
-  neutrophil_support: [S100a8, S100a9, +Ly6g, +Retnlg]
+  neutrophil_support: [S100a8, S100a9, Cxf3r, Cxcr2]
 Lymphoid:
   markers: [Ptprc]
   T_lineage: [Cd3d, Trac, Cd2]
   B_lineage: [Cd79a, Ms4a1, +Cd19]
-  NK_lineage: [Klrd1, Nkg7, Ncr1, +Klrb1c, +Gzma] 
+  NK_lineage: [Klrd1, Nkg7, Ncr1, Klrb1c] 
 Mast:               {markers: [Tpsab1, Tpsb2, Cpa3, Ms4a2, +Mcpt4, +Kit]}
 Mesothelial:        {markers: [Msln, Upk3b, Calb2, Wt1, +Lrrn4]}
 ```
@@ -37,32 +37,29 @@ Mesothelial:        {markers: [Msln, Upk3b, Calb2, Wt1, +Lrrn4]}
 
 ```yaml
 AT1:
-  markers: [Ager, Rtkn2, Hopx, +Aqp5, +Pdpn, +Emp2]
+  markers: [Rtkn2, Hopx, Aqp5, Pdpn, Emp2]
 AT2:
   markers: [Sftpc, Sftpb, Sftpa1, Sftpd, +Lamp3, +Abca3, +Slc34a2]
-  note: SFTPA1/SFTPA2 → single Sftpa1 (no Sftpa2). Sftpc is the standard mouse AT2 anchor; Lyz1/Lyz2 are also high in mouse AT2.
 Secretory:
-  markers: [Krt19, Wfdc2, Cxcl17, +Bpifa1]
+  markers: [Krt19, Cxcl17]
 Club:
-  markers: [Scgb1a1, Scgb3a2, Cyp2f2, Bpifb1, +Cbr2]
-Aberrant basaloid → "Krt8-high transitional AT2→AT1 state" (PATS / DATP / ADI):
-  markers: [Krt8, Cldn4, Krt19, Sfn, Lgals3, Cdkn1a, +Krt18, +Ndrg1, +Il1r1]
+  markers: [Scgb3a2, Cyp2f2, Gabrp, Retnla]
+Aberrant basaloid:
+  markers: [Krt8, Cldn4, Krt19, Sfn, Lgals3, Cdkn1a, Krt18]
 Basal:
-  markers: [Krt5, Trp63, Krt15, Krt17, +Krt14, +Ngfr]
-Suprabasal / hillock:
-  markers: [Krt4, Krt13, +Ecm1, +Lgals3, +Anxa1]
+  markers: [Krt5, Trp63, Krt15, Krt17, Aqp3]
 Goblet:
-  markers: [Muc5ac, Muc5b, Spdef, Agr2, +Gcnt3, +Bpifb1]
+  markers: [Muc5b, Ltf, Bpifb1, Scgb1a1]
 Multiciliated:
-  markers: [Foxj1, Tppp3, Rsph1, +Dynlrb2, +Cdhr3]
+  markers: [Foxj1, Rsph1, Ccdc153]
 Deuterosomal:
-  markers: [Deup1, Foxn4, Cdc20b, Ccno, +Mcidas]
+  markers: [Deup1, Foxn4, Cdc20b, Ccno, Mcidas]
 PNEC:
-  markers: [Ascl1, Calca, Chga, Chgb, Scg5, +Syp, +Resp18]
+  markers: [Ascl1, Calca, Chga, Chgb, Scg5, Syp, Resp18]
 Ionocyte:
-  markers: [Foxi1, Cftr, Ascl3, +Atp6v1b1, +Atp6v0a4]  # Atp6v1a is ubiquitous, drop as sole marker
+  markers: [Foxi1, Ascl3, Atp6v1b1, Atp6v0a4] 
 Tuft:
-  markers: [Pou2f3, Trpm5, Dclk1, Avil, Gnat3, +Il25, +Alox5ap]   # HES6, LRMP are weak in mouse
+  markers: [Pou2f3, Trpm5, Dclk1, Avil, Gnat3, Il25, Alox5ap]   # HES6, LRMP are weak in mouse
 
 ```
 
@@ -70,37 +67,35 @@ Tuft:
 
 ```yaml
 Alveolar macrophage (AM):
-  markers: [Siglecf, Itgax, Ear2, Chil3, Krt79, Pparg, Marco, Fabp1, Fabp4]
-  note: ⚠ C1qa/C1qb are higher in interstitial macrophages in mouse; do not use as AM markers. Mrc1 is moderate. Siglecf alone is shared with eosinophils (add Ear2/Pparg, exclude Prg2/Epx).
+  markers: [Siglecf, Ear2, Chil3, Krt79,Plet1]
 Interstitial macrophage (IM):
-  markers: [C1qa, C1qb, Lyve1, Folr2, Mrc1, Pf4, Cx3cr1, Selenop, Rnase1]   # CD163 weaker in mouse
+  markers: [C1qa, C1qb, C1qc, Mrc1, Pf4, Cx3cr1, Selenop, Rnase1]
   subsets: Lyve1-hi/Folr2-hi perivascular; MHCII-hi (H2-Aa, Cd74) Cx3cr1-hi
-  note: exclude Lyve1+ lymphatic ECs.
 Monocyte-derived macrophage (MoMac):
-  markers: [Lyz2, Cd68, Csf1r, Mertk, Fcgr1, Ccr2, +Cx3cr1]
-  note: In bleomycin, recruited Siglecf-low Itgax+ monocyte-derived AM (Misharin 2017) replace resident AM; do not infer origin from expression alone.
+  markers: [Lyz2, Cd68, Mertk, Fcgr1, Ccr2, +Cx3cr1]
+Monocyte:
+  markers: [Plac8, Ifitm3]
 Classical monocyte:
-  markers: [Ly6c2, Ccr2, Plac8, Vcan, Cd14, Sell]   # FCN1 not discriminating in mouse
+  markers: [Plac8, Vcan, Cd14]
 Non-classical monocyte:
-  markers: [Cx3cr1, Nr4a1, Pparg?, Cd36, Ace, Itgax-low, Treml4, Fcgr4]   # Fcgr3a → Fcgr3/Fcgr4
-  note: exclude Fcgr3+ NK.
+  markers: [Cx3cr1, Ace, Treml4] 
 cDC1:
-  markers: [Clec9a, Xcr1, Irf8, Wdfy4, Cadm1, +Batf3, +Itgae]
+  markers: [Clec9a, Xcr1, Irf8, Wdfy4, Cadm1, Itgae]
 cDC2:
-  markers: [Sirpa, Cd209a, Clec10a, Clec4a4, Fcer1a?, Irf4, Itgam]   # CD1C/CD1E no ortholog; Fcer1a is weak on mouse cDC2
+  markers: [Cd209a, Ccl17, Mgl2]
 Mature / migratory DC (mregDC):
-  markers: [Ccr7, Fscn1, Lamp3, Cd83, Ccl22, Cd274, Pdcd1lg2, Cd200, Traf1]   # CCL19 weak in mouse DC
+  markers: [Ccr7, Cacnb3, Fscn1, Mreg]
 pDC:
-  markers: [Siglech, Bst2, Ly6d, Tcf4, Pld4, Irf7, Ccr9, Gzmb]   # CLEC4C, LILRA4 no ortholog; IL3RA low
+  markers: [Siglech, Bst2, Ly6d, Tcf4, TFF3]
 Neutrophil:
-  markers: [Csf3r, Cxcr2, S100a8, S100a9, G0s2, Ly6g, Retnlg, Mmp9, Il1b]
+  markers: [Csf3r, Cxcr2, S100a8, S100a9, G0s2]
   note: immature: Ltf, Camp, Ngp, Lcn2, Chil3.
 Mast:
   markers: [Tpsab1, Tpsb2, Cpa3, Ms4a2, Mcpt4, Cma1, Kit, Gata2]
 Basophil (mouse add):
   markers: [Mcpt8, Cd200r3, Ms4a2, Fcer1a]
-Eosinophil:
-  markers: [Siglecf, Prg2, Epx, Ear6, Ccr3, Il5ra, Clc]   # RNASE2 → Ear-family; SIGLEC8 → Siglecf (shared with AM)
+Megakaryocyte (MK):
+  markers: [Alox12, Tubb1, Itga2b, Pf4, Ppbp, Gp1ba, Gp1bb, Gp9]
 ```
 
 ### T, NK, ILC
@@ -195,10 +190,10 @@ Stress response:          [Fos, Jun, Junb, Egr1, Atf3, Dusp1]
 IFN response:             [Isg15, Ifit1, Ifit3, Mx1, Oas1a, Rsad2, Irf7, Usp18, Ifi27l2a]   # OAS1 → Oas1a/g; IFI6 no ortholog
 Proliferation:            [Mki67, Top2a, Ube2c, Stmn1]
 Heat shock / dissociation stress (rename from "Hypoxia"): [Hspa1a, Hspa1b, Hspb1, Hsp90aa1, Dnajb1]
-Hypoxia (true):           [Vegfa, Bnip3, Ndrg1, Slc2a1, Ldha, Pgk1, Egln3]
 Metallothionein-high:     [Mt1, Mt2]      # MT1E/X/G, MT2A collapse to Mt1, Mt2
+AM IFN response:             [Isg15, Rsad2, Oasl2]
 
-Macrophage SPP1-high:     [Spp1, Gpnmb, Trem2, Lgals3, Cd9, Fabp5, Mmp12, Chil1, Arg1?]   # CHI3L1 → Chil1; CHIT1, LILRB4 weak
+Macrophage SPP1-high:     [Spp1, Gpnmb, Trem2, Lgals3, Cd9, Fabp5, Mmp12, Chil1] 
 Macrophage inflammatory 1: [Ccl2, Il1rn, Tnf]
 Macrophage inflammatory 2: [Il1b, Cxcl1, Cxcl2, Cxcl3]    # CXCL8 no ortholog
 EC IFN response:          [Isg20, Lap3, Cx3cl1, Irf1]
