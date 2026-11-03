@@ -4,12 +4,6 @@ Derived from `marker_panel_human_v2.md` by (1) ortholog mapping, (2) review agai
 **Status:** Curated candidate panel. Before use, confirm every symbol against the dataset's var_names (and MGI `HOM_MouseHumanSequence.rpt`). 
 **Scope:** Mouse lung scRNA/snRNA-seq (homeostasis, bleomycin/other fibrosis, injury). 
 
-## Species-level cautions
-
-- Mice have no respiratory bronchioles and submucosal glands exist only in the upper trachea, so AT0, pre-TB, TRB and SMG calls usually do not apply to distal-lung datasets.
-- Basal cells are restricted to trachea/main bronchi, except after injury (ectopic Krt5+ cells).
-- Many human immune markers are absent in mouse: GNLY, FCGR3B, CD1C, CD1E, LILRA4, XCL2, FCN3, IFI6, CXCL8, KLRC3, CD27-on-B-memory logic.
-
 ## L1
 
 ```yaml
@@ -102,18 +96,17 @@ Megakaryocyte (MK):
 
 ```yaml
 CD4 T:   {markers: [Cd3d, Trac, Cd4]}
-CD8 T:   {markers: [Cd3d, Trac, Cd8a, Cd8b1]}     # CD8B → Cd8b1
+CD8 T:   {markers: [Cd3d, Trac, Cd8a, Cd8b1]} 
 Treg:    {markers: [Foxp3, Il2ra, Ctla4, Ikzf2, Tigit]}
 NK:
-  markers: [Klrd1, Ncr1, Nkg7, Prf1, Ctsw, Gzma, Klrb1c, Eomes, Klrk1]   # GNLY dropped
+  markers: [Klrd1, Ncr1, Nkg7, Prf1, Ctsw, Gzma, Klrb1c, Eomes, Klrk1]
   note: Klrb1c (NK1.1) is strain-dependent (absent in BALB/c). Confirm no Cd3 program.
 Mature NK (replaces CD16+ NK):
   markers: [Itgam, Cx3cr1, Klrg1, Zeb2, S1pr5, Fgfbp2, Fcgr3]
 Immature / tissue NK (replaces CD56bright):
-  markers: [Cd27, Xcl1, Sell, Kit?, Itga1, Cxcr6]   # NCAM1, XCL2 absent
+  markers: [Cd27, Xcl1, Sell, Kit?, Itga1, Cxcr6]  
 MAIT:
-  markers: [Trav1, Slc4a10, Zbtb16, Klrb1c, Il18rap, Rorc]   # TRAV1-2 → Trav1 (Vα19-Jα33)
-  note: Rare in SPF C57BL/6 lung; conditional.
+  markers: [Trav1, Slc4a10, Zbtb16, Klrb1c, Il18rap, Rorc]
 Gamma-delta T:
   markers: [Trdc, Trgc1, Trgc2, Trgc4, Tcrg-V gene usage]
   gdT17: [Il17a, Il17f, Rorc, Cd163l1 (Scart2), Blk, Sox13, Maf, Ccr6]
