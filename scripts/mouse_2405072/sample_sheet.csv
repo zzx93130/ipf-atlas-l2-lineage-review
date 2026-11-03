@@ -1,0 +1,4 @@
+sample_id,zip_path,condition,batch,species,tissue
+2405072_BLM,2405072_BLM/filtered_feature_bc_matrix.zip,BLM,2405072_BLM,mouse,lung
+2405072_BLM_870,2405072_BLM_870/filtered_feature_bc_matrix.zip,BLM_870,2405072_BLM_870,mouse,lung
+2405072_Saline,2405072_Saline/filtered_feature_bc_matrix.zip,Saline,2405072_Saline,mouse,lung

@@ -1,0 +1,29 @@
+cluster,user_label,user_call,user_state,user_action,route,user_notes
+20,epithelial,Epithelial,,keep,cluster,user 2026-11-02: epithelial
+2,epithelial,Epithelial,,keep,cluster,user 2026-11-02: epithelial
+23,epithelial,Epithelial,,keep,cluster,user 2026-11-02: epithelial
+25,epithelial,Epithelial,,keep,cluster,user 2026-11-02: epithelial
+1,endothelial,Endothelial,,keep,cluster,user 2026-11-02: endothelial
+13,endothelial,Endothelial,,keep,cluster,user 2026-11-02: endothelial
+16,endothelial,Lymphatic endothelial,,keep,cluster,user 2026-11-02: LEC (endothelial unit)
+11,stromal,Stromal,,keep,cluster,user 2026-11-02: stromal
+8,stromal,Stromal,,keep,cluster,user 2026-11-02: stromal
+12,stromal,Stromal,,keep,cluster,user 2026-11-02: stromal
+27,stromal,Mesothelial,,keep,cluster,user 2026-11-02: Meso (stromal unit)
+21,myeloid,Myeloid,,keep,cluster,user 2026-11-02: myeloid
+6,myeloid,Myeloid,,keep,cluster,user 2026-11-02: myeloid
+4,myeloid,Myeloid,,keep,cluster,user 2026-11-02: myeloid
+0,myeloid,Myeloid,,keep,cluster,user 2026-11-02: myeloid
+19,myeloid,Myeloid,,keep,cluster,user 2026-11-02: myeloid
+5,myeloid,Myeloid,,keep,cluster,user 2026-11-02: myeloid
+14,myeloid,Myeloid,,keep,cluster,user 2026-11-02: myeloid
+9,tnk,T/NK,,keep,cluster,user 2026-11-02: T/NK
+7,tnk,T/NK,,keep,cluster,user 2026-11-02: T/NK
+24,tnk,ILC3,,keep,cluster,user 2026-11-02: ILC3 (T/NK/ILC unit)
+22,tnk,ILC2,,keep,cluster,user 2026-11-02: ILC2 (T/NK/ILC unit)
+18,bplasma,B/plasma,,keep,cluster,user 2026-11-02: B/plasma
+3,bplasma,B/plasma,,keep,cluster,user 2026-11-02: B/plasma
+17,,,Proliferating,keep,per_cell,user 2026-11-02: proliferating cells; state not lineage -> lineage assigned per cell from the L1 panel score
+10,,,IFN response,keep,per_cell,user 2026-11-02: IFN response; state not lineage -> lineage assigned per cell from the L1 panel score
+15,,,,remove,cluster,user 2026-11-02: removed
+26,,,,remove,cluster,user 2026-11-02: removed
