@@ -19,8 +19,11 @@ PY=~/.claude-science/conda/envs/ipf-atlas/bin/python
 export NUMBA_CACHE_DIR=/tmp/numba_mouse_L1
 $PY l1_mouse.py --stage markers          # reads ../../references/marker_panel_mouse_v2.md
 for s in qc doublets embed evidence figures; do $PY l1_mouse.py --stage $s || break; done
-# after review: decisions in user_decisions_L1.csv (next to the script)
-$PY l1_mouse.py --stage apply   # L1 labels for every cell
+# optional L1 round 2, 3, ...: drop L1 clusters and re-embed the rest, then review the new round
+$PY l1_mouse.py --stage recluster --remove 3,7 --reason "low quality"
+$PY l1_mouse.py --stage evidence && $PY l1_mouse.py --stage figures   # latest round -> L1/review/round<k>/
+# after review: decisions in user_decisions_L1.csv (round 1) or user_decisions_L1_round<k>.csv (round k)
+$PY l1_mouse.py --stage apply   # L1 labels for every cell (latest round; --round k to choose)
 $PY l1_mouse.py --stage split   # one h5ad per lineage in L1/lineages/
 for L in epithelial endothelial stromal myeloid tnk bplasma; do $PY l2_scanpy_lineage.py $L; done
 $PY l2_scanpy_lineage.py stromal --remove 3,7 --reason "..."   # optional further rounds
@@ -40,7 +43,8 @@ Needs `scikit-misc` (seurat_v3 HVGs), `harmonypy`, `leidenalg`/`igraph`, `openpy
 | embed | Median-normalise + log1p; 3,000 seurat_v3_paper HVGs by sample (no mt/ribo/Hb/IG-TR V/J); regress total_counts + pct_mt, scale, PCA 50; Harmony on sample_id; gates G1 iLISI and G4 kNN separation (B-T, myeloid-T, endo-stromal, epi-stromal) for PCA vs Harmony; k=15, UMAP, Leiden 0.2/0.5/1.0. |
 | evidence | At Leiden 0.5: AUCell per unit, cluster z + margin, support floor 20%, detection >=40% or margin >=0.75; Wilcoxon cluster-vs-rest (scores, padj<0.05, RP/MT removed); size drop (n/n_prev < 0.5); per-cell dual-lineage test; ambient vs doublet diagnosis; states relative to lineage median; keep/remove/review proposals with reasons. |
 | figures | UMAP by cluster, by proposed L1 (removals grey), by sample; panel marker dot plot; top-10 DEG dot plot (own-row outlined, sharing counts); state-gene dot plot; QC violins. |
-| apply | Reads `user_decisions_L1.csv` (columns cluster, user_label = unit, user_call = finer L1 name, user_state, user_action keep/remove, route, user_notes; every cluster must be listed). `route=per_cell` (clusters 17 Proliferating, 10 IFN response) assigns each cell the unit with the highest L1-panel AUCell z if its margin over the runner-up is >= 1.0 (`ROUTE_MARGIN`); cells below are removed with the reason. Writes `L1/annotation/L1_labels.parquet` (every cell: QC/doublet/user removals with reasons), `L1_state_cluster_routing.csv`, `L1_counts_by_sample.csv`, `L1/units/<unit>_cells.parquet`, `user_decisions_L1_0.5.csv`, UMAPs `umap_L1_final*.png` (lineage, call, state). |
+| recluster | `--remove 3,7` drops Leiden 0.5 clusters of the latest L1 round (`--from-round`, `--from-res`, `--reason`); removed cells go to `work/L1_round<k>_removed_cells.csv`; the rest are re-embedded from raw counts (HVGs, regress/scale/PCA, Harmony, gates, UMAP, Leiden ladder) into `work/03_embedded_round<k>.h5ad`; `L1/review/round<k>/L1_prev_vs_new_clusters.csv`. An existing round<k> is renamed `*_prev_<timestamp>`, never deleted. evidence / figures / apply / split then use the latest round (`--round k` to choose). |
+| apply | Reads `user_decisions_L1.csv` (round 1) or `user_decisions_L1_round<k>.csv` (round k; or `--decisions`) (columns cluster, user_label = unit, user_call = finer L1 name, user_state, user_action keep/remove, route, user_notes; every cluster must be listed). `route=per_cell` (clusters 17 Proliferating, 10 IFN response) assigns each cell the unit with the highest L1-panel AUCell z if its margin over the runner-up is >= 1.0 (`ROUTE_MARGIN`); cells below are removed with the reason. Writes `L1/annotation/L1_labels.parquet` (every cell: QC/doublet/user removals with reasons), `L1_state_cluster_routing.csv`, `L1_counts_by_sample.csv`, `L1/units/<unit>_cells.parquet`, `user_decisions_L1_0.5.csv`, UMAPs `umap_L1_final*.png` (lineage, call, state). |
 | split | `L1/lineages/mouse_2405072_<unit>_L1.h5ad` for epithelial, endothelial, stromal, myeloid, tnk, bplasma: kept cells, X = raw counts (float32) = layers['counts'], all measured genes; obs = sample/condition, QC, doublet scores, Leiden ladder, AUCell, L1_cluster/lineage/call/state/route; obsm X_pca, X_pca_harmony, X_umap_L1. L2 re-derives HVGs and latents from these counts. |
 
 ## Caveats

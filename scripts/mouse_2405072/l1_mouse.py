@@ -8,6 +8,8 @@ Stages (run in order, each as a fresh process):
   embed     remove consensus doublets, lognorm, HVGs, regress/scale/PCA, Harmony, gates, UMAP, Leiden ladder
   evidence  per-cluster evidence at the L1 resolution, DE, proposals, review table
   figures   review package (cluster UMAP, proposed-L1 UMAP, sample UMAP, panel / top-DEG / state dot plots)
+  recluster drop L1 clusters (--remove 3,7) and re-embed the rest from raw counts -> L1 round 2, 3, ...;
+            evidence / figures / apply / split then use the latest round (or --round k)
   apply     apply the user's decisions (user_decisions_L1.csv): L1 labels for every cell, per-unit cell lists,
             state clusters (Proliferating, IFN response) routed to a lineage per cell
   split     one h5ad per lineage (raw counts, L1 metadata) under L1/lineages/ for L2
@@ -110,10 +112,29 @@ UNIT_KEYWORDS = [
 
 
 # ----------------------------------------------------------------------------- utilities
+ROUND = 1  # L1 round the review / apply / split stages work on (set in main)
+
+
+def emb_file(k):
+    w = OUT_DIR / "work"
+    return w / "03_embedded.h5ad" if k == 1 else w / f"03_embedded_round{k}.h5ad"
+
+
+def latest_l1_round():
+    ks = [k for k in range(1, 100) if emb_file(k).exists()]
+    if not ks:
+        raise SystemExit(f"no L1 embedding in {OUT_DIR / 'work'}: run --stage embed first")
+    return max(ks)
+
+
+def review_dir(k):
+    return OUT_DIR / "L1" / "review" if k == 1 else OUT_DIR / "L1" / "review" / f"round{k}"
+
+
 def paths():
     p = {
         "work": OUT_DIR / "work", "logs": OUT_DIR / "logs", "markers": OUT_DIR / "markers",
-        "review": OUT_DIR / "L1" / "review", "figs": OUT_DIR / "L1" / "review" / "figures",
+        "review": review_dir(ROUND), "figs": review_dir(ROUND) / "figures",
         "annot": OUT_DIR / "L1" / "annotation", "units": OUT_DIR / "L1" / "units", "final": OUT_DIR / "final",
     }
     for v in p.values():
@@ -192,6 +213,27 @@ def marker_sets(m, var_names):
     for s, r in req.items():  # invariant: a required gene must be a member of the set it gates
         assert set(r) <= set(ident[s]), f"required genes of {s} not in its set"
     return ident, states, req, missing
+
+
+def select_hvgs(H):
+    """seurat_v3_paper by sample; on a loess failure retry with a stricter gene filter + wider span, then fall back
+    to the dispersion-based 'seurat' flavor on lognorm. Returns (hvg names, method dict)."""
+    n_det = np.asarray((H.layers["counts"] > 0).sum(0)).ravel()
+    for flavor, min_cells, span in [("seurat_v3_paper", 1, 0.3), ("seurat_v3_paper", max(10, int(0.005 * H.n_obs)), 0.5),
+                                    ("seurat", max(10, int(0.005 * H.n_obs)), None)]:
+        t = H[:, n_det >= min_cells].copy()
+        try:
+            if flavor == "seurat":
+                t.X = t.layers["lognorm"]
+                sc.pp.highly_variable_genes(t, n_top_genes=N_HVG, flavor=flavor, batch_key="sample_id")
+            else:
+                sc.pp.highly_variable_genes(t, n_top_genes=N_HVG, flavor=flavor, batch_key="sample_id",
+                                            layer="counts", span=span)
+        except ValueError as e:
+            say(f"HVG {flavor} (genes in >={min_cells} cells, span {span}) failed: {str(e).strip()[:80]}")
+            continue
+        return t.var_names[t.var["highly_variable"]], {"flavor": flavor, "min_cells": int(min_cells), "span": span}
+    raise SystemExit("all HVG attempts failed")
 
 
 def regress_scale_pca(a, keys=("total_counts", "pct_counts_mt"), n_pcs=N_PCS, block=500, seed=0, n_jobs=8):
@@ -677,6 +719,12 @@ def stage_embed(args):
     say(f"removed {n0 - A.n_obs} consensus doublets; {A.n_obs} cells")
     keep_g = np.asarray((A.layers["counts"] > 0).sum(0)).ravel() > 0
     A = A[:, keep_g].copy()
+    embed_cells(A, m, 1)
+
+
+def embed_cells(A, m, rnd, extra_log=None):
+    """lognorm -> HVGs -> regress/scale/PCA -> Harmony -> AUCell -> gates -> kNN/UMAP/Leiden ladder; writes emb_file(rnd).
+    A: cells x all genes with layers['counts'] (raw) and the QC / doublet obs columns."""
     A.X = A.layers["counts"].copy()
     sc.pp.normalize_total(A)
     sc.pp.log1p(A)
@@ -684,13 +732,11 @@ def stage_embed(args):
     # HVGs on counts, excluding mt/ribo/hb and IG/TR V/J genes
     excl = (A.var_names.str.match(MT_PAT) | A.var_names.str.match(RIBO_PAT) | A.var_names.str.match(HB_PAT)
             | A.var_names.str.match(IGTR_VJ_PAT))
-    H = A[:, ~excl].copy()
-    sc.pp.highly_variable_genes(H, n_top_genes=N_HVG, flavor="seurat_v3_paper", batch_key="sample_id", layer="counts")
-    hvg = H.var_names[H.var["highly_variable"]]
+    hvg, hvg_method = select_hvgs(A[:, ~excl].copy())
     A.var["highly_variable"] = A.var_names.isin(hvg)
     Ah = A[:, A.var["highly_variable"].values].copy()
     Ah.X = Ah.layers["lognorm"]
-    say(f"HVGs: {len(hvg)}; regress/scale/PCA")
+    say(f"HVGs: {len(hvg)} ({hvg_method}); regress/scale/PCA")
     Z0 = regress_scale_pca(Ah, keys=[])
     Z = regress_scale_pca(Ah)
     corr = {"unregressed_control": qc_pc_correlation(Z0, A.obs), "regressed": qc_pc_correlation(Z, A.obs)}
@@ -745,20 +791,69 @@ def stage_embed(args):
                      random_state=0)
         say(f"leiden {r}: {A.obs[f'leiden_{r}'].nunique()} clusters")
     A.uns["L1_latent"] = {"choice": choice, "why": why}
+    A.uns["L1_round"] = rnd
     A.X = A.layers["counts"]
-    A.write_h5ad(p["work"] / "03_embedded.h5ad", compression="gzip")
-    log_event("embed", n_cells=A.n_obs, n_genes=A.n_vars, n_hvg=len(hvg), pc_qc_corr=corr, gates=gates,
+    A.write_h5ad(emb_file(rnd), compression="gzip")
+    log_event("embed", round=rnd, **(extra_log or {}), n_cells=A.n_obs, n_genes=A.n_vars, n_hvg=len(hvg),
+              hvg_method=hvg_method, pc_qc_corr=corr, gates=gates,
               latent=choice, latent_why=why, missing_marker_genes=missing,
               leiden={str(r): int(A.obs[f"leiden_{r}"].nunique()) for r in LEIDEN_LADDER},
               note="sample_id == condition here (one sample per condition): Harmony on sample_id can also "
                    "remove condition signal; compare L1 calls between latents before trusting either")
 
 
+# ----------------------------------------------------------------------------- stage: recluster
+def stage_recluster(args):
+    """Drop L1 clusters of a round (Leiden L1_RES ids) and re-embed the remaining cells from raw counts."""
+    global ROUND
+    ids = [x.strip() for x in (args.remove or "").split(",") if x.strip()]
+    if not ids:
+        raise SystemExit("--stage recluster needs --remove <cluster ids>, e.g. --remove 3,7")
+    prev = args.from_round or latest_l1_round()
+    new = prev + 1
+    key = f"leiden_{args.from_res or L1_RES}"
+    P = sc.read_h5ad(emb_file(prev))
+    if key not in P.obs:
+        raise SystemExit(f"{key} not in L1 round {prev}; available {[c for c in P.obs if c.startswith('leiden_')]}")
+    pc = P.obs[key].astype(str)
+    bad = [c for c in ids if c not in set(pc)]
+    if bad:
+        raise SystemExit(f"clusters {bad} not in L1 round {prev} {key} (has {sorted(set(pc), key=int)})")
+    stamp = pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")
+    for old in [emb_file(new), review_dir(new)]:  # never delete an earlier attempt
+        if old.exists():
+            old.rename(old.with_name(f"{old.stem}_prev_{stamp}{old.suffix}"))
+    rm = pc.isin(ids).values
+    removed = pd.DataFrame({"cell_id": P.obs_names[rm], "sample_id": P.obs["sample_id"].astype(str).values[rm],
+                            "from_round": prev, "cluster_key": key, "cluster": pc.values[rm],
+                            "reason": [f"L1 round{prev} {key} cluster {c}: {args.reason}" for c in pc.values[rm]]})
+    removed.to_csv(OUT_DIR / "work" / f"L1_round{new}_removed_cells.csv", index=False)
+    say(f"L1 round {new}: removing clusters {ids} of round {prev} {key} ({rm.sum():,} cells "
+        f"{removed['cluster'].value_counts().to_dict()}); {(~rm).sum():,} cells re-embedded")
+    drop = [c for c in P.obs.columns if c.startswith(("leiden_", "auc_")) or c in ("cell_unit", "cell_unit_margin")]
+    obs = P.obs.loc[~rm].drop(columns=drop)
+    prev_col = f"round{prev}_{key}"
+    obs[prev_col] = pc.values[~rm]
+    A = ad.AnnData(X=P.layers["counts"][~rm].copy(), obs=obs, var=P.var[[c for c in P.var.columns
+                                                                         if c != "highly_variable"]].copy())
+    A.layers["counts"] = A.X.copy()
+    del P
+    ROUND = new
+    embed_cells(A, markers_table(), new, extra_log={"from_round": prev, "removed_clusters": ids,
+                                                     "n_removed": int(rm.sum()), "reason": args.reason})
+    A = sc.read_h5ad(emb_file(new))
+    ct = pd.crosstab(A.obs[prev_col], A.obs[f"leiden_{L1_RES}"])
+    review_dir(new).mkdir(parents=True, exist_ok=True)
+    ct.to_csv(review_dir(new) / "L1_prev_vs_new_clusters.csv")
+    say(f"previous clusters ({prev_col}, rows) x new clusters (leiden_{L1_RES}, columns):\n{ct.to_string()}")
+    say(f"next: --stage evidence, --stage figures (round {new} is now the latest)")
+
+
 # ----------------------------------------------------------------------------- stage: evidence
 def stage_evidence(args):
     p = paths()
     m = markers_table()
-    A = sc.read_h5ad(p["work"] / "03_embedded.h5ad")
+    A = sc.read_h5ad(emb_file(ROUND))
     key = f"leiden_{L1_RES}"
     A.obs[key] = A.obs[key].astype(str)
     cl = A.obs[key]
@@ -965,11 +1060,13 @@ def stage_evidence(args):
     # README
     lat = A.uns.get("L1_latent", {})
     log = json.loads((p["logs"] / "pipeline_log.json").read_text())
-    emb = [x for x in log if x["stage"] == "embed"][-1]
+    emb = [x for x in log if x["stage"] == "embed" and x.get("round", 1) == ROUND][-1]
     dbl = [x for x in log if x["stage"] == "doublets"][-1]
     rc = T["recommendation"].value_counts().to_dict()
     lines = [
-        "# Mouse 2405072 - L1 lineage review", "",
+        f"# Mouse 2405072 - L1 lineage review (round {ROUND})", "",
+        *([f"Round {ROUND}: re-embedded after removing clusters {emb.get('removed_clusters')} of round "
+           f"{emb.get('from_round')} ({emb.get('n_removed')} cells: {emb.get('reason')}).", ""] if ROUND > 1 else []),
         f"Cells after QC + consensus-doublet removal: {A.n_obs:,}; samples: "
         + ", ".join(f"{k} {v:,}" for k, v in A.obs['sample_id'].value_counts().items()), "",
         f"- Ambient correction: skipped (filtered matrices only).",
@@ -989,10 +1086,10 @@ def stage_evidence(args):
                                                 "confidence", "reason"]].to_string(), "```",
     ]
     (p["review"] / "README_L1.md").write_text("\n".join(lines))
-    A.obs[[key]].to_parquet(p["work"] / "04_clusters.parquet")
+    A.obs[[key]].to_parquet(p["work"] / ("04_clusters.parquet" if ROUND == 1 else f"04_clusters_round{ROUND}.parquet"))
     say(f"review table: {len(T)} clusters, recommendations {rc}")
     print(T[["n_cells", "proposed_L1", "proposed_state", "recommendation", "confidence"]].to_string())
-    log_event("evidence", resolution=L1_RES, n_clusters=len(T), recommendations=rc, size_drop_rank=drop_at + 1,
+    log_event("evidence", round=ROUND, resolution=L1_RES, n_clusters=len(T), recommendations=rc, size_drop_rank=drop_at + 1,
               dual_median=dual_med)
 
 
@@ -1075,7 +1172,7 @@ def umap_plot(U, labels, fname, title, colors=None, text=True, order=None, legen
 def stage_figures(args):
     p = paths()
     m = markers_table()
-    A = sc.read_h5ad(p["work"] / "03_embedded.h5ad")
+    A = sc.read_h5ad(emb_file(ROUND))
     key = f"leiden_{L1_RES}"
     cl = A.obs[key].astype(str).values
     T = pd.read_csv(p["review"] / "L1_review_table.csv", dtype={"cluster": str}).set_index("cluster")
@@ -1126,7 +1223,8 @@ def load_decisions(args, p):
     """Agent review table + user decisions -> one row per cluster with final_action/label/call/state/route."""
     rv = p["review"] / "L1_review_table.csv"
     T = pd.read_csv(rv, dtype=str, keep_default_na=False).set_index("cluster")
-    f = Path(args.decisions) if args.decisions else SCRIPT_DIR / "user_decisions_L1.csv"
+    f = Path(args.decisions) if args.decisions else \
+        SCRIPT_DIR / ("user_decisions_L1.csv" if ROUND == 1 else f"user_decisions_L1_round{ROUND}.csv")
     if f.exists():
         U = pd.read_csv(f, dtype=str, keep_default_na=False).set_index("cluster")
         miss, extra = sorted(set(T.index) - set(U.index), key=int), sorted(set(U.index) - set(T.index), key=int)
@@ -1165,7 +1263,8 @@ def stage_apply(args):
     T, src = load_decisions(args, p)
     today = str(date.today())
     T.assign(decided_on=today).to_csv(p["review"] / f"user_decisions_L1_{L1_RES}.csv")
-    A = sc.read_h5ad(p["work"] / "03_embedded.h5ad")
+    say(f"applying L1 round {ROUND} decisions from {src}")
+    A = sc.read_h5ad(emb_file(ROUND))
     key = f"leiden_{L1_RES}"
     cl = A.obs[key].astype(str)
     qc = sc.read_h5ad(p["work"] / "01_qc.h5ad", backed="r").obs
@@ -1176,6 +1275,8 @@ def stage_apply(args):
     for c in ["L1_lineage", "L1_call", "L1_state", "L1_route", "L1_removal_reason", "L1_label_before_removal"]:
         L[c] = ""
     L["L1_status"] = "kept"
+    L["L1_round"] = ""
+    L.loc[cl.index, "L1_round"] = str(ROUND)
     L["L1_route_margin"] = np.nan
     noqc = ~qc["qc_pass"].values
     L.loc[noqc, "L1_status"] = "removed_qc"
@@ -1186,10 +1287,18 @@ def stage_apply(args):
     L.loc[dbl, "L1_status"] = "removed_doublet"
     L.loc[dbl, "L1_removal_reason"] = "doublet consensus " + D.loc[dbl, "n_doublet_calls"].astype(str) + "/" + \
         D.loc[dbl, "n_doublet_methods"].astype(str)
+    for j in range(2, ROUND + 1):  # cells dropped by earlier L1 recluster rounds
+        rmc = pd.read_csv(p["work"] / f"L1_round{j}_removed_cells.csv", dtype=str)
+        L.loc[rmc["cell_id"], "L1_status"] = "removed"
+        L.loc[rmc["cell_id"], "L1_round"] = rmc["from_round"].values
+        L.loc[rmc["cell_id"], "L1_cluster"] = rmc["cluster"].values
+        L.loc[rmc["cell_id"], "L1_removal_reason"] = rmc["reason"].values
+    unacc = L.index[(L["L1_status"] == "kept") & ~L.index.isin(cl.index)]
+    assert len(unacc) == 0, f"{len(unacc)} QC/doublet-passing cells are in no L1 round and no removed-cells file"
     routing = []
     for c, r in T.iterrows():
         cells = cl.index[cl.values == c]
-        tag = f"leiden_{L1_RES}_cluster_{c}"
+        tag = f"L1 round{ROUND} leiden_{L1_RES}_cluster_{c}"
         L.loc[cells, "L1_route"] = r["route"]
         L.loc[cells, "L1_state"] = r["final_state"]
         if r["final_action"] == "remove":
@@ -1244,7 +1353,7 @@ def stage_apply(args):
     ct.to_csv(p["annot"] / "L1_counts_by_sample.csv")
     print(L["L1_status"].value_counts().to_string())
     print(ct.to_string())
-    log_event("apply", decisions=src, route_margin=ROUTE_MARGIN, status=L["L1_status"].value_counts().to_dict(),
+    log_event("apply", round=ROUND, decisions=src, route_margin=ROUTE_MARGIN, status=L["L1_status"].value_counts().to_dict(),
               lineage_counts=L.loc[kept, "L1_lineage"].value_counts().to_dict(),
               call_counts=L.loc[kept, "L1_call"].value_counts().to_dict(), routing=routing)
 
@@ -1255,8 +1364,12 @@ def stage_split(args):
     L1 metadata + QC + doublet columns, the L1 UMAP / PCA / Harmony latents (L2 re-derives HVGs and latents)."""
     p = paths()
     L = pd.read_parquet(p["annot"] / "L1_labels.parquet").set_index("cell_id")
-    A = sc.read_h5ad(p["work"] / "03_embedded.h5ad")
     kept = L.index[L["L1_status"] == "kept"]
+    rnd = sorted(set(L.loc[kept, "L1_round"].astype(str))) if "L1_round" in L else ["1"]
+    assert len(rnd) == 1, f"kept cells come from several L1 rounds {rnd}"
+    rnd = int(rnd[0])
+    A = sc.read_h5ad(emb_file(rnd))
+    say(f"splitting L1 round {rnd} ({len(kept):,} kept cells)")
     A = A[A.obs_names.isin(kept)].copy()
     counts = A.layers["counts"].astype(np.float32)
     A = ad.AnnData(X=counts, obs=A.obs, var=A.var, obsm=dict(A.obsm), layers={"counts": counts.copy()})
@@ -1265,8 +1378,10 @@ def stage_split(args):
                 "n_doublet_methods", "doublet_candidate"] + [f"leiden_{r}" for r in LEIDEN_LADDER] + \
                [f"auc_{u}" for u in UNITS] + ["cell_unit", "cell_unit_margin"]
     obs = A.obs[[c for c in keep_obs if c in A.obs]].copy()
-    for c in ["L1_cluster", "L1_lineage", "L1_call", "L1_state", "L1_route", "L1_route_margin", "decided_on"]:
-        obs[c] = L.loc[A.obs_names, c].values
+    for c in ["L1_round", "L1_cluster", "L1_lineage", "L1_call", "L1_state", "L1_route", "L1_route_margin",
+              "decided_on"]:
+        if c in L:
+            obs[c] = L.loc[A.obs_names, c].values
     for c in obs.columns:
         if obs[c].dtype == object:
             obs[c] = obs[c].astype(str).astype("category")
@@ -1274,7 +1389,7 @@ def stage_split(args):
     for k in [k for k in A.obsm if k not in ("X_umap", "X_pca", "X_pca_harmony")]:
         del A.obsm[k]
     A.obsm["X_umap_L1"] = A.obsm.pop("X_umap")
-    A.uns = {"L1_info": {"source": "l1_mouse.py", "L1_resolution": L1_RES, "latent": "see logs/pipeline_log.json",
+    A.uns = {"L1_info": {"source": "l1_mouse.py", "L1_round": rnd, "L1_resolution": L1_RES, "latent": "see logs/pipeline_log.json",
                          "X": "raw counts (float32); layers['counts'] identical",
                          "decided_on": str(L["decided_on"].iloc[0])}}
     A.obsp = {}
@@ -1299,15 +1414,15 @@ def stage_split(args):
         say(f"{u}: {a.n_obs:,} cells -> {f.name}  calls {written[u]['calls']}")
     total = sum(v["n_cells"] for v in written.values())
     assert total == len(kept), f"split cells {total} != kept {len(kept)}"
-    log_event("split", files=written)
+    log_event("split", round=rnd, files=written)
 
 
 # ----------------------------------------------------------------------------- main
 def main():
-    global DATA_DIR, OUT_DIR, SAMPLE_SHEET
+    global DATA_DIR, OUT_DIR, SAMPLE_SHEET, ROUND
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--stage", required=True, choices=["markers", "qc", "doublets", "embed", "evidence", "figures",
-                                                        "apply", "split"])
+                                                        "apply", "split", "recluster"])
     ap.add_argument("--data-dir", default=str(DATA_DIR))
     ap.add_argument("--out-dir", default=str(OUT_DIR))
     ap.add_argument("--sample-sheet", default=str(SAMPLE_SHEET))
@@ -1319,14 +1434,21 @@ def main():
     ap.add_argument("--review", help="filled review table for --stage apply (used when no decisions CSV exists)")
     ap.add_argument("--decisions", help="user decisions CSV for --stage apply (default: user_decisions_L1.csv next "
                     "to this script); columns cluster,user_label,user_call,user_state,user_action,route,user_notes")
+    ap.add_argument("--round", type=int, help="L1 round for evidence / figures / apply (default: latest)")
+    ap.add_argument("--remove", help="recluster: comma-separated L1 cluster ids to drop, e.g. 3,7")
+    ap.add_argument("--from-round", type=int, help="recluster: round the ids refer to (default: latest)")
+    ap.add_argument("--from-res", type=float, help=f"recluster: Leiden resolution of the ids (default {L1_RES})")
+    ap.add_argument("--reason", default="removed by user", help="recluster: reason recorded for removed cells")
     ap.add_argument("--force", action="store_true", help="continue past a failed gate (logged)")
     a = ap.parse_args()
     DATA_DIR, OUT_DIR, SAMPLE_SHEET = Path(a.data_dir), Path(a.out_dir), Path(a.sample_sheet)
     sc.settings.n_jobs = 8
-    say(f"stage {a.stage}: data {DATA_DIR} -> out {OUT_DIR}")
+    if a.stage in ("evidence", "figures", "apply"):
+        ROUND = a.round or latest_l1_round()
+    say(f"stage {a.stage}: data {DATA_DIR} -> out {OUT_DIR}" + (f" (L1 round {ROUND})" if ROUND > 1 else ""))
     {"markers": stage_markers, "qc": stage_qc, "doublets": stage_doublets, "embed": stage_embed,
      "evidence": stage_evidence, "figures": stage_figures, "apply": stage_apply,
-     "split": stage_split}[a.stage](a)
+     "split": stage_split, "recluster": stage_recluster}[a.stage](a)
     say("done")
 
 
