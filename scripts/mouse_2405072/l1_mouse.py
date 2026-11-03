@@ -60,6 +60,7 @@ UNITS = ["epithelial", "endothelial", "stromal", "myeloid", "tnk", "bplasma"]  #
 MAD_COUNTS, MAD_GENES, MAD_MT = 5, 5, 3
 MT_HARD_CAP = 20.0        # % mito, hard cap on top of the 3-MAD rule (working value; log it)
 MIN_GENES = 200           # absolute floor (working value; log it)
+MAX_GENES = 8000          # absolute cap (working value; log it)
 MAX_SAMPLE_LOSS = 0.40    # halt if a sample loses more than this at QC
 
 # doublets: expected rate ~0.8% per 1,000 recovered cells (10x)
@@ -602,16 +603,16 @@ def stage_qc(args):
         med = np.median(o["pct_counts_mt"])
         mt_hi = min(MT_HARD_CAP, med + MAD_MT * np.median(np.abs(o["pct_counts_mt"] - med)) * 1.4826)
         f_m = o["pct_counts_mt"].values > mt_hi
-        f_n = o["n_genes_by_counts"].values < MIN_GENES
+        f_n = (o["n_genes_by_counts"].values < MIN_GENES) | (o["n_genes_by_counts"].values > MAX_GENES)
         o["qc_fail_counts"], o["qc_fail_genes"], o["qc_fail_mt"], o["qc_fail_mingenes"] = f_c, f_g, f_m, f_n
         o["qc_pass"] = ~(f_c | f_g | f_m | f_n)
         loss = 1 - o["qc_pass"].mean()
         ret.append({"sample_id": r["sample_id"], "condition": r["condition"], "n_input": a.n_obs,
                     "n_pass": int(o["qc_pass"].sum()), "frac_lost": round(loss, 4),
                     "fail_counts": int(f_c.sum()), "fail_genes": int(f_g.sum()), "fail_mt": int(f_m.sum()),
-                    "fail_min_genes": int(f_n.sum()),
+                    "fail_min_max_genes": int(f_n.sum()),
                     "counts_range": f"{np.expm1(c_lo):.0f}-{np.expm1(c_hi):.0f}",
-                    "genes_range": f"{max(np.expm1(g_lo), MIN_GENES):.0f}-{np.expm1(g_hi):.0f}",
+                    "genes_range": f"{max(np.expm1(g_lo), MIN_GENES):.0f}-{min(np.expm1(g_hi), MAX_GENES):.0f}",
                     "mt_max_pct": round(float(mt_hi), 2),
                     "median_counts": float(o["total_counts"].median()),
                     "median_genes": float(o["n_genes_by_counts"].median()),
@@ -646,7 +647,7 @@ def stage_qc(args):
     plt.close(fig)
     A.write_h5ad(p["work"] / "01_qc.h5ad", compression="gzip")
     log_event("qc", retention=ret, rules={"mad_counts": MAD_COUNTS, "mad_genes": MAD_GENES, "mad_mt": MAD_MT,
-                                          "mt_hard_cap": MT_HARD_CAP, "min_genes": MIN_GENES},
+                                          "mt_hard_cap": MT_HARD_CAP, "min_genes": MIN_GENES, "max_genes": MAX_GENES},
               ambient="SKIPPED: only filtered matrices supplied; SoupX/CellBender need raw_feature_bc_matrix",
               gate_failed=gate_fail)
     if gate_fail and not args.force:
